@@ -1,48 +1,55 @@
 """
-Database Schemas
+Database Schemas for Trading Journal
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model here represents a MongoDB collection. The collection name
+is the lowercase of the class name (e.g., Trade -> "trade").
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Literal
+from datetime import datetime
 
-# Example schemas (replace with your own):
+# ==========================
+# Core Collections
+# ==========================
 
-class User(BaseModel):
+class Trade(BaseModel):
     """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
+    Trading journal entry
+    Collection: trade
     """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+    symbol: str = Field(..., description="Ticker or instrument symbol, e.g., AAPL, BTCUSDT")
+    side: Literal["long", "short"] = Field(..., description="Direction of the trade")
+    strategy: Optional[str] = Field(None, description="Strategy name/label")
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+    entry_date: datetime = Field(..., description="Entry datetime (UTC)")
+    exit_date: Optional[datetime] = Field(None, description="Exit datetime (UTC)")
 
-# Add your own schemas here:
-# --------------------------------------------------
+    entry_price: float = Field(..., gt=0, description="Entry price")
+    exit_price: Optional[float] = Field(None, gt=0, description="Exit price (if closed)")
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+    quantity: float = Field(..., gt=0, description="Position size in units (shares/contracts)")
+    fees: float = Field(0.0, ge=0, description="Total fees/commissions for the trade")
+
+    setup: Optional[str] = Field(None, description="Setup description or tags")
+    notes: Optional[str] = Field(None, description="Free-form notes")
+    tags: List[str] = Field(default_factory=list, description="List of tags for filtering")
+
+    risk_amount: Optional[float] = Field(None, ge=0, description="Planned risk in currency")
+    stop_loss: Optional[float] = Field(None, ge=0, description="Stop loss price")
+    take_profit: Optional[float] = Field(None, ge=0, description="Take profit price")
+
+    closed: bool = Field(False, description="Whether the trade is closed")
+
+class Strategy(BaseModel):
+    """User-defined strategies for grouping and analysis"""
+    name: str
+    description: Optional[str] = None
+    tags: List[str] = []
+
+class Tag(BaseModel):
+    """Free-form tag catalog (optional)"""
+    name: str
+    color: Optional[str] = Field(None, description="Hex color like #10b981")
+
+# You can extend with Account, Session, Screenshot, etc., as needed.
